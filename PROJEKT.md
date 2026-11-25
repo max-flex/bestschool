@@ -60,6 +60,8 @@ service-worker.js      Offline-Fähigkeit: Netzwerk zuerst, sonst Zwischenspeich
 icons/                 App-Icons; neu erzeugen mit gen-icons.ps1
 Start.bat, serve.ps1   Lokaler Start unter Windows (Port 8124, auch fürs Handy im WLAN)
 .nojekyll              GitHub Pages ohne Jekyll-Verarbeitung
+audio/de/              Sprachaufnahmen (Stimme Kerstin): <prüfsumme>.mp3 + index.json (Satz → Datei)
+tools/audio/           sammle-saetze.js (alle Sätze finden) und erzeuge-aufnahmen.py (MP3s erzeugen)
 style.css              Gestaltung (CSS-Variablen, Animationen, Handy-Anpassungen)
 app.js                 gesamte Logik: Aufgaben, Bildschirme, Speicher, Töne, Vorlesen, Übersetzungen
 tests/aufgaben-test.js Prüft automatisch 360.000 Aufgaben (beide Sprachen) auf Korrektheit
@@ -189,6 +191,41 @@ Danach `http://localhost:8765/` öffnen (`?lang=en` für Englisch).
 2. In beiden Sprachen und in Handy-Größe im Browser durchklicken.
 3. In `index.html` die Versionsnummer an `style.css?v=…` und `app.js?v=…` erhöhen und in `service-worker.js` den `CACHE_NAME`. Sonst zeigen Browser (z. B. bei GitHub Pages) eventuell noch die alte Version aus dem Zwischenspeicher.
 
+## 8a. Sprachaufnahmen (Deutsch)
+
+Auf Deutsch spielt die App **fest eingebaute Aufnahmen** ab, statt die Stimme des Geräts zu nutzen.
+
+**So funktioniert es:**
+- **Stimme:** „Kerstin“ von Piper (`de_DE-kerstin-low`, Lizenz CC0). Gewählt nach Hörproben.
+- **Ein Satz, eine Datei:** Jeder Satz, den die App vorlesen kann, ist eine eigene MP3-Datei. Derzeit sind es ca. 2.540 Sätze, zusammen ca. 24 MB bei 26 kbit/s, knapp 2 Stunden Sprache.
+- **Dateiname:** Er besteht aus den ersten 12 Zeichen der SHA-1-Prüfsumme des Satzes. `audio/de/index.json` ordnet jedem Satz seine Datei zu.
+- **Abspielen:**
+  - `say(text)` bereinigt den Text mit `speechClean()` und zerlegt ihn mit `speechSentences()` in Sätze.
+  - Gibt es für **jeden** Satz eine Aufnahme, spielt die App sie nacheinander über die WebAudio-API ab.
+  - Fehlt auch nur ein Satz, liest die Gerätestimme den ganzen Text vor. In der Browser-Konsole erscheint dann „[BestSchool] Keine Aufnahme für: …“.
+- **Gerätestimme statt Aufnahmen:** Im Eltern-Bereich eine Gerätestimme wählen (`state.voices.de`). „Automatisch“ bedeutet: Aufnahmen.
+- **Offline:**
+  - Der Service Worker legt die MP3s in einem eigenen Zwischenspeicher ab (`bestschool-audio`). Wegen der Prüfsummen-Namen bleiben sie bei App-Updates erhalten.
+  - Der Knopf „Aufnahmen für offline speichern“ lädt alle Dateien auf einmal.
+- **Wann die Aufnahmen nicht spielen:**
+  - Beim Öffnen per Doppelklick (`file://`) liest die Gerätestimme vor. Nur über http(s) gibt es Aufnahmen, also online oder mit `Start.bat`.
+  - Englisch hat (noch) keine Aufnahmen.
+
+**Aufnahmen neu erzeugen**, nötig nach jeder Änderung an deutschen Texten, die vorgelesen werden:
+
+```powershell
+node tools/audio/sammle-saetze.js
+& "$env:LOCALAPPDATA\bestschool-tts\venv\Scripts\python.exe" tools/audio/erzeuge-aufnahmen.py "$env:LOCALAPPDATA\bestschool-tts\voices"
+```
+
+- `sammle-saetze.js` erzeugt 60.000 Zufallsaufgaben je Thema und Stufe und sammelt alle Sätze. Dazu kommen die festen Texte der Bildschirme. Diese Liste steht im Skript und muss bei neuen Texten **von Hand ergänzt** werden.
+- `erzeuge-aufnahmen.py` erzeugt nur neue Sätze und löscht nicht mehr benutzte Dateien.
+- Python-Umgebung und Stimmmodell liegen außerhalb des Projekts unter `%LOCALAPPDATA%\bestschool-tts`. Neu einrichten:
+  1. `py -m venv venv`
+  2. `venv\Scripts\pip install piper-tts soundfile`
+  3. Modell `de_DE-kerstin-low.onnx` und `.onnx.json` von huggingface.co/rhasspy/piper-voices herunterladen.
+- **Wichtig:** Das Skript korrigiert die Lautschrift mit einer NFC-Normalisierung. Ohne sie spricht Kerstin „ich“ wie „ik“, weil espeak das „ç“ zerlegt liefert.
+
 ## 9. So erweitert man die App
 
 ### Neue Aufgabenart in einem bestehenden Thema
@@ -196,6 +233,7 @@ Danach `http://localhost:8765/` öffnen (`?lang=en` für Englisch).
 2. Einen Zweig schreiben, der ein Aufgabenobjekt (Abschnitt 5) zurückgibt. Alle Texte kommen über `tx('…', '…')`.
 3. Auf Mehrdeutigkeit achten: Unter den Antwortknöpfen darf nur **eine** Antwort richtig sein.
 4. Eine passende Prüfung in `tests/aufgaben-test.js` ergänzen.
+5. Die Aufnahmen neu erzeugen (Abschnitt 8a). Ist ein Text schlecht vorlesbar, etwa wegen Zeichen wie `<`, gibt man im Aufgabenobjekt `speak` bzw. `answerSpeak` als Vorlesetext an.
 
 ### Neues Thema (z. B. „Plus bis 10“)
 1. Den Schlüssel in `TOPIC_KEYS` eintragen, Icon und Farbklasse in `TOPIC_STYLE`.
@@ -214,7 +252,8 @@ Danach `http://localhost:8765/` öffnen (`?lang=en` für Englisch).
 
 ## 10. Bekannte Grenzen
 
-- **Stimmen:** Die Vorlesestimme hängt vom Gerät ab.
+- **Aufnahmen:** Die eingebauten Aufnahmen gibt es nur auf Deutsch. Sie sind künstlich erzeugt (Piper „low“-Qualität, 16 kHz). Eine Stimme in höherer Qualität könnte man mit demselben Skript erzeugen, siehe Abschnitt 8a.
+- **Gerätestimmen** (Englisch, oder wenn im Eltern-Bereich gewählt): Die Vorlesestimme hängt vom Gerät ab.
   - Am natürlichsten klingen die „Natural“-Stimmen in Microsoft Edge. Sie brauchen Internet.
   - Firefox unter Windows hat oft nur die einfachen Windows-Stimmen.
   - Ohne deutsche Stimme liest der Browser mit einer anderen Stimme oder gar nicht vor.

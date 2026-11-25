@@ -50,8 +50,10 @@ Danach hat BestSchool ein eigenes Icon und funktioniert auch offline.
 
 Empfohlene Browser: aktuelle Versionen von Chrome, Edge, Safari oder Firefox.
 
-**🗣️ Vorlesestimme:** Die App wählt automatisch die natürlichste deutsche Frauenstimme, die auf dem Gerät verfügbar ist. Im Eltern-Bereich lässt sich die Stimme auch selbst wählen und probehören.
-Am angenehmsten klingen die kostenlosen **„Natural“-Stimmen in Microsoft Edge** (z. B. Katja oder Seraphina, Internet nötig), danach „Google Deutsch“ in Chrome bzw. „Anna/Petra“ auf Apple-Geräten.
+**🗣️ Vorlesestimme:** Auf Deutsch liest eine **fest eingebaute Frauenstimme („Kerstin“)** vor. Sie klingt dadurch auf jedem Handy, Tablet und PC gleich.
+Die Aufnahmen werden beim ersten Vorlesen geladen. Im Eltern-Bereich lassen sich alle Aufnahmen auf einmal für die Offline-Nutzung speichern (ca. 24 MB).
+Wer lieber die Stimme des Geräts hört, kann sie dort ebenfalls auswählen. Auf Englisch liest immer die Stimme des Geräts vor.
+Wenn die App per Doppelklick auf `index.html` geöffnet wird, liest ebenfalls die Gerätestimme vor. Die Aufnahmen funktionieren nur online oder über `Start.bat`.
 
 ### ⚠️ Haftungsausschluss
 
@@ -119,6 +121,8 @@ tests/       Automatischer Aufgaben-Test · automatic task test (node tests/aufg
 manifest.json, service-worker.js, icons/   Handy-App (PWA) · installable app, offline
 Start.bat, serve.ps1   Lokaler Start unter Windows · local start on Windows
 gen-icons.ps1          Erzeugt die Icons · generates the icons
+audio/de/              Sprachaufnahmen (MP3) + index.json · voice recordings
+tools/audio/           Skripte zum Erzeugen der Aufnahmen · scripts to (re)generate the recordings
 PROJEKT.md   Projektbeschreibung für Entwickler · developer documentation (German)
 ```
 
@@ -127,3 +131,6 @@ Keine externen Bibliotheken, kein Tracking · No external libraries, no tracking
 ### 📄 Lizenz · License
 
 [MIT](LICENSE)
+
+**Sprachaufnahmen · Voice recordings** (`audio/de/`): Sie wurden mit [Piper](https://github.com/OHF-Voice/piper1-gpl) und der Stimme „Kerstin“ erzeugt ([rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices), Datensatz [dataset-voice-kerstin](https://github.com/rhasspy/dataset-voice-kerstin), Lizenz CC0). Es ist eine künstliche Stimme, keine echte Person.
+Generated with Piper using the CC0 “Kerstin” voice. Synthetic voice, not a real person.

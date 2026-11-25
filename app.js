@@ -107,10 +107,18 @@ let round = null;
 
 /* ======================= Töne & Vorlesen ======================= */
 let actx = null;
+// Gemeinsamer AudioContext für Töne und Aufnahmen (wird beim ersten Antippen freigeschaltet)
+function audioCtx() {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  } catch (e) { return null; }
+}
 function tone(freq, dur, type = 'sine', when = 0, vol = 0.15) {
   if (!state.sound) return;
   try {
-    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx()) return;
     const t = actx.currentTime + when;
     const o = actx.createOscillator(), g = actx.createGain();
     o.type = type; o.frequency.value = freq;
@@ -163,15 +171,110 @@ function findVoice() {
 }
 if (hasSpeech) speechSynthesis.getVoices();
 
+// Text fürs Vorlesen bereinigen. Wird auch von tools/audio benutzt – Änderungen erfordern neue Aufnahmen!
+function speechClean(text) {
+  return String(text)
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/[„“”"]/g, '')
+    .replace(/…/g, ', ')            // kurze Sprechpause statt „Punkt Punkt Punkt“
+    .replace(/\s–\s/g, ', ')
+    .replace(/\s·\s/g, ' und ')       // „Größer · kleiner“ → „Größer und kleiner“
+    .replace(/,\s*,/g, ',')
+    .replace(/\s+([,.!?:])/g, '$1')
+    .replace(/\s+/g, ' ').trim();
+}
+// In Sätze zerlegen – jeder Satz ist eine Aufnahme
+function speechSentences(text) {
+  return speechClean(text).split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+}
+
+/* ---------- Aufnahmen: feste Sprachaufnahmen (Deutsch: Stimme „Kerstin“, erzeugt mit tools/audio) ----------
+ * audio/<sprache>/index.json ordnet jedem Satz (nach speechClean) eine MP3-Datei zu.
+ * Fehlt auch nur ein Satz, liest die Gerätestimme den ganzen Text vor (und die Konsole meldet den Satz). */
+const rec = { index: {}, status: {}, buffers: new Map(), sources: [], token: 0 };
+
+function loadRecIndex(l) {
+  if (rec.status[l] || !location.protocol.startsWith('http') || typeof fetch !== 'function') return;
+  rec.status[l] = 'loading';
+  fetch(`audio/${l}/index.json`)
+    .then(r => (r.ok ? r.json() : null))
+    .then(j => { rec.index[l] = j || null; rec.status[l] = j ? 'ok' : 'none'; if ($('#pVoice')) fillVoiceSelect(); })
+    .catch(() => { rec.status[l] = 'none'; });
+}
+// Aufnahmen nutzen, wenn vorhanden und im Eltern-Bereich keine Gerätestimme gewählt ist
+const recActive = () => !!rec.index[lang] && !(state.voices && state.voices[lang]);
+
+function recBuffer(id) {
+  const key = `${lang}/${id}`;
+  if (!rec.buffers.has(key)) {
+    const ctx = audioCtx();
+    const p = fetch(`audio/${key}.mp3`)
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .then(ab => new Promise((ok, fail) => ctx.decodeAudioData(ab, ok, fail)));
+    p.catch(() => rec.buffers.delete(key));
+    rec.buffers.set(key, p);
+  }
+  return rec.buffers.get(key);
+}
+
+function stopSpeech() {
+  rec.token++;
+  rec.sources.forEach(s => { try { s.stop(); } catch (e) { /* schon beendet */ } });
+  rec.sources = [];
+  if (hasSpeech) { try { speechSynthesis.cancel(); } catch (e) { /* egal */ } }
+}
+
+function playRecorded(text) {
+  if (!recActive() || !audioCtx()) return false;
+  const idx = rec.index[lang];
+  const sentences = speechSentences(text);
+  const ids = sentences.map(s => idx[s]);
+  if (!ids.length || ids.some(id => !id)) {
+    console.warn('[BestSchool] Keine Aufnahme für:', sentences.filter(s => !idx[s]));
+    return false;
+  }
+  stopSpeech();
+  const token = rec.token;
+  Promise.all(ids.map(recBuffer)).then(bufs => {
+    if (token !== rec.token) return;           // inzwischen wurde etwas anderes gesagt
+    let t = actx.currentTime + 0.03;
+    bufs.forEach(b => {
+      const s = actx.createBufferSource();
+      s.buffer = b; s.connect(actx.destination); s.start(t);
+      t += b.duration + 0.12;
+      rec.sources.push(s);
+    });
+  }).catch(() => { if (token === rec.token) sayDevice(text); });  // z. B. offline und nicht gespeichert
+  return true;
+}
+
+// Alle Aufnahmen der aktuellen Sprache für die Offline-Nutzung laden (landen im Cache des Service Workers)
+async function downloadAllRecordings(onProgress) {
+  const ids = [...new Set(Object.values(rec.index[lang] || {}))];
+  let done = 0, failed = 0, next = 0;
+  const worker = async () => {
+    while (next < ids.length) {
+      const id = ids[next++];
+      try { const r = await fetch(`audio/${lang}/${id}.mp3`); if (!r.ok) failed++; } catch (e) { failed++; }
+      onProgress(++done, ids.length);
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, worker));
+  return failed;
+}
+
 function say(text) {
+  if (!state.sound || !text) return;
+  if (playRecorded(text)) return;   // Aufnahmen bevorzugen
+  sayDevice(text);
+}
+
+// Vorlesen mit der Stimme des Geräts (Web Speech API)
+function sayDevice(text) {
   if (!state.sound || !hasSpeech || !text) return;
   try {
-    speechSynthesis.cancel();
-    const clean = text
-      .replace(/\p{Extended_Pictographic}/gu, '')
-      .replace(/…/g, ', ')            // kurze Sprechpause statt „Punkt Punkt Punkt“
-      .replace(/\s–\s/g, ', ')
-      .replace(/\s+/g, ' ').trim();
+    stopSpeech();
+    const clean = speechClean(text);
     const u = new SpeechSynthesisUtterance(clean);
     u.lang = VOICE_LANG[lang];
     const v = findVoice();
@@ -425,6 +528,7 @@ const GEN = {
         line: win(Math.min(a, b), Math.max(a, b), 20, [a, b]),
       },
       answerText: tx(`${a} ${esc(ans)} ${b} – denn ${a} ${word[ans]} ${b}.`, `${a} ${esc(ans)} ${b} – because ${a} ${word[ans]} ${b}.`),
+      answerSpeak: `${a} ${word[ans]} ${b}.`,   // ohne die Zeichen < = >, die schlecht vorlesbar sind
     };
   },
 
@@ -741,14 +845,14 @@ function reveal() {
     fillVisual(task);
   } else if (task.mode === 'line') {
     const cell = $(`.visual .nl-cell[data-v="${task.answer}"]`);
-    if (isHop) hopFrog(task, () => { cell.classList.add('right'); say(strip(task.answerText)); });
+    if (isHop) hopFrog(task, () => { cell.classList.add('right'); say(task.answerSpeak || strip(task.answerText)); });
     else cell.classList.add('right');
   } else if (task.mode === 'multi') {
     $$('.visual .nl-cell').forEach(c => { c.classList.remove('sel'); c.classList.toggle('right', task.answer.includes(+c.dataset.v)); });
   }
   $('.feedback').innerHTML = `<div class="hint reveal"><div class="hint-head">🦉 ${look}</div><div class="hint-text">${task.answerText}</div><button class="btn big go" id="nextBtn">${tx('Weiter', 'Next')} ➜</button></div>`;
   $('#nextBtn').onclick = () => { sfx.tap(); nextTask(); };
-  if (!isHop) say(`${look} ${strip(task.answerText)}`);
+  if (!isHop) say(`${tx('Schau mal!', 'Look!')} ${task.answerSpeak || strip(task.answerText)}`);
 }
 
 function hopFrog(task, done) {
@@ -829,7 +933,7 @@ function renderAlbum() {
   const rest = STARS_PER_STICKER - (state.stars % STARS_PER_STICKER);
   const text = have >= STICKERS.length
     ? tx('Wow! Du hast <b>alle Sticker</b> gesammelt!', 'Wow! You have collected <b>all the stickers</b>!')
-    : tx(`Du hast <b>${have}</b> Sticker. Noch <b>${rest}</b> ${rest === 1 ? 'Stern' : 'Sterne'} bis zum nächsten!`,
+    : tx(`Du hast <b>${have}</b> Sticker. Noch ${rest === 1 ? '<b>einen</b> Stern' : `<b>${rest}</b> Sterne`} bis zum nächsten!`,
          `You have <b>${have}</b> ${have === 1 ? 'sticker' : 'stickers'}. <b>${rest}</b> more ${rest === 1 ? 'star' : 'stars'} until the next one!`);
   setScreen(`
     <section>
@@ -899,9 +1003,16 @@ function renderParents() {
         <select id="pVoice" class="voicesel" aria-label="${tx('Stimme wählen', 'Choose voice')}"></select>
         <button class="btn" id="pVoiceTest">▶️ ${tx('Probe hören', 'Listen')}</button>
       </div>
-      <p class="voicetip">${tx(
-        'Die App wählt automatisch die natürlichste Frauenstimme. Am schönsten klingen die kostenlosen „Natural“-Stimmen im Browser <b>Microsoft Edge</b> (z. B. Katja oder Seraphina) oder „Google Deutsch“ in Chrome.',
-        'The app automatically picks the most natural female voice. The free “Natural” voices in <b>Microsoft Edge</b> (e.g. Sonia or Libby) or the Google voices in Chrome sound best.')}</p>
+      <p class="voicetip">${rec.index[lang]
+        ? tx('„Automatisch“ nutzt die fest eingebauten Aufnahmen (Stimme Kerstin). Sie klingen auf jedem Gerät gleich. Wer lieber die Stimme des Geräts hört, wählt sie hier aus.',
+             '“Automatic” uses the built-in recordings. Choose a device voice here if you prefer.')
+        : tx('Die App wählt automatisch die natürlichste Frauenstimme des Geräts. Am schönsten klingen die kostenlosen „Natural“-Stimmen im Browser <b>Microsoft Edge</b> oder „Google Deutsch“ in Chrome.',
+             'The app automatically picks the most natural female voice. The free “Natural” voices in <b>Microsoft Edge</b> (e.g. Sonia or Libby) or the Google voices in Chrome sound best.')}</p>
+      ${rec.index[lang] && 'serviceWorker' in navigator && location.protocol === 'https:' ? `
+      <div class="row voicerow">
+        <button class="btn" id="pOffline">📥 ${tx('Aufnahmen für offline speichern (ca. 24 MB)', 'Save recordings for offline use')}</button>
+        <span class="voicetip" id="pOfflineInfo"></span>
+      </div>` : ''}
       <div class="row">
         <button class="btn" id="pSound">${state.sound ? tx('🔇 Ton &amp; Vorlesen aus', '🔇 Sound &amp; reading off') : tx('🔊 Ton &amp; Vorlesen an', '🔊 Sound &amp; reading on')}</button>
         <button class="btn" id="pLang">🌐 ${tx('English version', 'Deutsche Version')}</button>
@@ -925,6 +1036,15 @@ function renderParents() {
     saveState(); sayVoiceSample();
   };
   $('#pVoiceTest').onclick = sayVoiceSample;
+  if ($('#pOffline')) $('#pOffline').onclick = async () => {
+    const btn = $('#pOffline'), info = $('#pOfflineInfo');
+    btn.disabled = true;
+    const failed = await downloadAllRecordings((d, n) => { info.textContent = `${d} / ${n}`; });
+    info.textContent = failed
+      ? tx(`${failed} Aufnahmen konnten nicht geladen werden. Bitte mit Internet erneut versuchen.`, `${failed} recordings failed. Please try again online.`)
+      : tx('✔ Alle Aufnahmen sind gespeichert – Vorlesen klappt jetzt auch offline.', '✔ All recordings saved for offline use.');
+    btn.disabled = false;
+  };
   $('#pSound').onclick = () => { state.sound = !state.sound; saveState(); updateHeader(); renderParents(); };
   $('#pLang').onclick = () => { setLang(lang === 'de' ? 'en' : 'de'); renderParents(); };
   // Umschalter: erspielte Stufen (state.levels) bleiben unverändert
@@ -959,11 +1079,11 @@ function fillVoiceSelect() {
   const sel = $('#pVoice'); if (!sel) return;
   const vs = langVoices();
   const chosen = state.voices && state.voices[lang];
-  const best = vs[0];
-  sel.innerHTML = `<option value="">${tx('Automatisch', 'Automatic')}${best ? ` (${esc(best.name)})` : ''}</option>`
-    + vs.map(v => `<option value="${esc(v.name)}"${v.name === chosen ? ' selected' : ''}>${esc(v.name)}</option>`).join('');
-  sel.disabled = !vs.length;
-  if (!vs.length) sel.innerHTML = `<option>${tx('Keine Stimme gefunden', 'No voice found')}</option>`;
+  const best = rec.index[lang] ? 'Kerstin – Aufnahme' : vs[0] && vs[0].name;
+  sel.innerHTML = `<option value="">${tx('Automatisch', 'Automatic')}${best ? ` (${esc(best)})` : ''}</option>`
+    + vs.map(v => `<option value="${esc(v.name)}"${v.name === chosen ? ' selected' : ''}>${tx('Gerät', 'Device')}: ${esc(v.name)}</option>`).join('');
+  sel.disabled = !vs.length && !rec.index[lang];
+  if (sel.disabled) sel.innerHTML = `<option>${tx('Keine Stimme gefunden', 'No voice found')}</option>`;
 }
 function sayVoiceSample() {
   if (!state.sound) { state.sound = true; saveState(); updateHeader(); }
@@ -973,7 +1093,8 @@ function sayVoiceSample() {
 
 function setLang(l) {
   lang = l; state.lang = l; saveState();
-  if (hasSpeech) speechSynthesis.cancel();
+  stopSpeech();
+  loadRecIndex(l);
   // ?lang= aus der Adresse entfernen, damit die Wahl beim Neuladen gilt
   if (new URLSearchParams(location.search).has('lang')) {
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* file:// */ }
@@ -1001,10 +1122,11 @@ function confetti(n = 24) {
 $('#btnHome').onclick = () => { sfx.tap(); renderHome(true); };
 $('#btnSound').onclick = () => {
   state.sound = !state.sound; saveState(); updateHeader();
-  if (!state.sound && hasSpeech) speechSynthesis.cancel();
+  if (!state.sound) stopSpeech();
   else sfx.tap();
 };
 $('#btnLang').onclick = () => { sfx.tap(); setLang(lang === 'de' ? 'en' : 'de'); renderHome(true); };
 applyLang();
 updateHeader();
+loadRecIndex(lang);
 renderHome(false);

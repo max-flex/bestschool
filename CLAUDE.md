@@ -7,3 +7,5 @@ Lern-App Mathe 1. Klasse (Zahlenraum 0–20), Deutsch/Englisch, reines HTML/CSS/
 - Jeder Text läuft über `tx('deutsch', 'english')` – immer beide Sprachen pflegen.
 - Der Hinweis „KI-generiert – kann Fehler enthalten“ muss in App, README und LICENSE bleiben.
 - Keine externen Bibliotheken, Schriften oder Dienste; keine Datenübertragung.
+- Deutsche Vorlesetexte geändert? Dann Aufnahmen neu erzeugen (PROJEKT.md, Abschnitt 8a). Die App meldet fehlende Sätze in der Konsole.
+- Git im NAS-Ordner immer mit `git -c safe.directory=*` aufrufen.

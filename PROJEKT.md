@@ -43,8 +43,23 @@ Weitere Funktionen:
 
 ## 3. Dateien
 
+**Online:** https://max-flex.github.io/bestschool/ (GitHub Pages aus dem Branch `main`, Repository `max-flex/bestschool`, öffentlich).
+Veröffentlicht wird genauso wie bei der Getreide-App:
+- GitHub-Konto `max-flex`
+- Commits mit `max-flex@users.noreply.github.com`
+- `.nojekyll`
+- PWA
+
+**Änderungen veröffentlichen:** Committen und `git push`. GitHub Pages aktualisiert sich nach 1–2 Minuten.
+Weil der Ordner auf dem NAS liegt (`\\NASFOLIE\alle\…`), meldet Git „dubious ownership“. Deshalb Git-Befehle mit `git -c safe.directory=* …` ausführen.
+
 ```
 index.html             Grundgerüst: Kopfzeile, <main id="screen">, Fußzeile mit KI-Hinweis
+manifest.json          PWA-Manifest (Name, Icons, standalone)
+service-worker.js      Offline-Fähigkeit: Netzwerk zuerst, sonst Zwischenspeicher. Bei Änderungen CACHE_NAME erhöhen
+icons/                 App-Icons; neu erzeugen mit gen-icons.ps1
+Start.bat, serve.ps1   Lokaler Start unter Windows (Port 8124, auch fürs Handy im WLAN)
+.nojekyll              GitHub Pages ohne Jekyll-Verarbeitung
 style.css              Gestaltung (CSS-Variablen, Animationen, Handy-Anpassungen)
 app.js                 gesamte Logik: Aufgaben, Bildschirme, Speicher, Töne, Vorlesen, Übersetzungen
 tests/aufgaben-test.js Prüft automatisch 360.000 Aufgaben (beide Sprachen) auf Korrektheit
@@ -172,7 +187,7 @@ Danach `http://localhost:8765/` öffnen (`?lang=en` für Englisch).
 **Nach jeder Änderung:**
 1. Test laufen lassen.
 2. In beiden Sprachen und in Handy-Größe im Browser durchklicken.
-3. In `index.html` die Versionsnummer an `style.css?v=…` und `app.js?v=…` erhöhen. Sonst zeigen Browser (z. B. bei GitHub Pages) eventuell noch die alte Version aus dem Zwischenspeicher.
+3. In `index.html` die Versionsnummer an `style.css?v=…` und `app.js?v=…` erhöhen und in `service-worker.js` den `CACHE_NAME`. Sonst zeigen Browser (z. B. bei GitHub Pages) eventuell noch die alte Version aus dem Zwischenspeicher.
 
 ## 9. So erweitert man die App
 
@@ -212,7 +227,7 @@ Danach `http://localhost:8765/` öffnen (`?lang=en` für Englisch).
 
 - Zahlenraum bis 100; Plus und Minus bis 10/20 (die Frosch-Hüpfer sind schon die Vorstufe)
 - Zahlzerlegung, Verdoppeln/Halbieren, Mengen schätzen
-- Installierbar und offline auf Tablets (PWA mit `manifest.json` und Service Worker)
+- ~~Installierbar und offline (PWA)~~ erledigt am 2026-11-25
 - Mehrere Kinder-Profile auf einem Gerät
 - Lehrkraft-Übersicht: welche Aufgabenarten oft falsch sind
 - Vorgefertigte Audiodateien mit einer festen, natürlichen Stimme. Das ist aufwendig, weil die Aufgaben zufällig erzeugt werden: Man müsste sie aus Satzbausteinen zusammensetzen.

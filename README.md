@@ -5,6 +5,9 @@
 
 🇩🇪 [Deutsch](#deutsch) · 🇬🇧 [English](#english)
 
+### ▶️ Direkt spielen · Play now: **https://max-flex.github.io/bestschool/**
+English version: https://max-flex.github.io/bestschool/?lang=en
+
 ---
 
 ## Deutsch
@@ -34,11 +37,16 @@ Dazu gibt es die **🎲 Bunte Mischung** mit Aufgaben aus allen Themen.
 
 ### 🚀 Starten
 
-**Herunterladen:** Oben auf **Code → Download ZIP** klicken, entpacken und `index.html` doppelklicken.
+**Online (Handy, Tablet, PC):** **https://max-flex.github.io/bestschool/** öffnen.
+Mit `?lang=en` bzw. `?lang=de` am Ende der Adresse startet die App direkt in der gewünschten Sprache.
 
-**Online über GitHub Pages:** Im Repository unter **Settings → Pages** den Branch `main` und den Ordner `/ (root)` wählen.
-Danach ist die App unter `https://<benutzername>.github.io/<repository>/` erreichbar.
-Mit `?lang=en` bzw. `?lang=de` am Ende der Adresse startet sie direkt in der gewünschten Sprache.
+**📱 Als App aufs Handy:**
+- **Android (Chrome):** Menü ⋮ → „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.
+- **iPhone/iPad (Safari):** Teilen-Symbol → „Zum Home-Bildschirm“.
+
+Danach hat BestSchool ein eigenes Icon und funktioniert auch offline.
+
+**Herunterladen:** Oben auf **Code → Download ZIP** klicken und entpacken. Dann `Start.bat` doppelklicken: Das startet einen kleinen lokalen Server und öffnet die App im Browser. Alternativ `index.html` direkt doppelklicken.
 
 Empfohlene Browser: aktuelle Versionen von Chrome, Edge, Safari oder Firefox.
 
@@ -79,11 +87,15 @@ There is also a **🎲 Mixed bag** with tasks from every topic.
 
 ### 🚀 Getting started
 
-**Download:** click **Code → Download ZIP**, unzip it and double-click `index.html`.
+**Online (phone, tablet, PC):** open **https://max-flex.github.io/bestschool/?lang=en**
 
-**Online via GitHub Pages:** in the repository go to **Settings → Pages** and choose branch `main` and folder `/ (root)`.
-The app will then be available at `https://<username>.github.io/<repository>/`.
-Add `?lang=en` or `?lang=de` to the address to open it in that language.
+**📱 Install as an app:**
+- **Android (Chrome):** menu ⋮ → “Install app” / “Add to Home screen”.
+- **iPhone/iPad (Safari):** Share icon → “Add to Home Screen”.
+
+BestSchool then gets its own icon and also works offline.
+
+**Download:** click **Code → Download ZIP** and unzip it. Then double-click `Start.bat` (starts a small local server and opens the app) or simply `index.html`.
 
 Recommended browsers: current versions of Chrome, Edge, Safari or Firefox.
 
@@ -104,6 +116,9 @@ index.html   Grundgerüst · page structure
 style.css    Gestaltung · styling (child-friendly, touch and small screens)
 app.js       Spiellogik, Aufgaben, Vorlesen, Töne, Übersetzungen · game logic, tasks, speech, sounds, translations
 tests/       Automatischer Aufgaben-Test · automatic task test (node tests/aufgaben-test.js)
+manifest.json, service-worker.js, icons/   Handy-App (PWA) · installable app, offline
+Start.bat, serve.ps1   Lokaler Start unter Windows · local start on Windows
+gen-icons.ps1          Erzeugt die Icons · generates the icons
 PROJEKT.md   Projektbeschreibung für Entwickler · developer documentation (German)
 ```
 

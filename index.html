@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="description" content="BestSchool – Mathe üben für die 1. Klasse / Maths practice for 1st grade: counting to 20, bigger and smaller, numbers in between.">
+  <meta name="theme-color" content="#3a86ff">
+  <title>BestSchool – Mathe für die 1. Klasse</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="BestSchool">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <button class="iconbtn" id="btnHome" aria-label="Zur Startseite">🏠</button>
+      <div class="logo">🎒 Best<span>School</span></div>
+      <div class="starbox" id="starBox" aria-label="Gesammelte Sterne">⭐ <span id="starCount">0</span></div>
+      <button class="iconbtn langbtn" id="btnLang" aria-label="Switch to English">EN</button>
+      <button class="iconbtn" id="btnSound" aria-label="Ton an oder aus">🔊</button>
+    </header>
+
+    <main id="screen"></main>
+
+    <footer class="ai-note" id="aiNote">
+      ⚠️ Diese App ist KI-generiert und kann Fehler enthalten. / This app is AI-generated and may contain errors.
+    </footer>
+  </div>
+
+  <noscript>Bitte JavaScript aktivieren, damit BestSchool funktioniert. / Please enable JavaScript to use BestSchool.</noscript>
+  <script src="app.js?v=4"></script>
+  <script>
+    // Als App installierbar und offline nutzbar (nur über http/https, nicht per Doppelklick)
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>

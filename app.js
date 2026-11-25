@@ -911,6 +911,7 @@ function renderParents() {
         <button class="btn" id="pLevels">↩️ ${tx('Stufen auf Anfang setzen', 'Reset levels to 1')}</button>
         <button class="btn warn" id="pReset">🗑️ ${tx('Fortschritt zurücksetzen', 'Reset progress')}</button>
       </div>
+      <div class="notice" id="pAsk" hidden></div>
       <p style="color:var(--muted);font-size:.9rem;margin-top:18px">
         ${tx('Der Fortschritt wird nur lokal in diesem Browser gespeichert. Es werden keine Daten übertragen.',
              'Progress is only stored locally in this browser. No data is sent anywhere.')}
@@ -929,19 +930,28 @@ function renderParents() {
   // Umschalter: erspielte Stufen (state.levels) bleiben unverändert
   $('#pUnlock').onclick = () => { state.unlockAll = !state.unlockAll; saveState(); renderParents(); };
   // Nur die Stufen zurücksetzen – Sterne und Sticker bleiben
-  $('#pLevels').onclick = () => {
-    if (confirm(tx('Alle Themen wieder auf Stufe 1 setzen? Sterne und Sticker bleiben erhalten.',
-                   'Set all topics back to level 1? Stars and stickers are kept.'))) {
-      state.levels = defaultState().levels; state.unlockAll = false; saveState(); renderParents();
-    }
-  };
-  $('#pReset').onclick = () => {
-    if (confirm(tx('Wirklich alle Sterne, Sticker und Stufen zurücksetzen?', 'Really reset all stars, stickers and levels?'))) {
+  $('#pLevels').onclick = () => askInline(
+    tx('Alle Themen wieder auf Stufe 1 setzen? Sterne und Sticker bleiben erhalten.', 'Set all topics back to level 1? Stars and stickers are kept.'),
+    () => { state.levels = defaultState().levels; state.unlockAll = false; saveState(); renderParents(); });
+  $('#pReset').onclick = () => askInline(
+    tx('Wirklich alle Sterne, Sticker und Stufen zurücksetzen?', 'Really reset all stars, stickers and levels?'),
+    () => {
       const { sound, voices } = state;
       state = defaultState(); Object.assign(state, { sound, voices, lang });
       saveState(); updateHeader(); renderParents();
-    }
-  };
+    });
+}
+
+// Sicherheitsabfrage direkt auf der Seite (Browser-Popups wie confirm() sind nicht überall erlaubt)
+function askInline(question, onYes) {
+  const box = $('#pAsk');
+  box.innerHTML = `<p><b>${question}</b></p><div class="row">
+    <button class="btn warn" id="pAskYes">${tx('Ja, zurücksetzen', 'Yes, reset')}</button>
+    <button class="btn" id="pAskNo">${tx('Abbrechen', 'Cancel')}</button></div>`;
+  box.hidden = false;
+  box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  $('#pAskYes').onclick = onYes;
+  $('#pAskNo').onclick = () => { box.hidden = true; box.innerHTML = ''; };
 }
 
 // Auswahlliste der Stimmen (beste zuerst, „automatisch“ ganz oben)
